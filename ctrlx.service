@@ -1,0 +1,17 @@
+[Unit]
+Description=CTRLX Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/bots/CTRLX
+ExecStart=/home/pi/bots/CTRLX/venv/bin/python main.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+MemoryMax=150M
+CPUQuota=25%
+
+[Install]
+WantedBy=multi-user.target
