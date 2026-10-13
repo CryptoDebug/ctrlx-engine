@@ -114,6 +114,7 @@ async def on_ready():
 async def main():
     init_db()
     await bot.load_extension("cogs.admin_cog")
+    await bot.load_extension("cogs.review_cog")
 
     if not DISCORD_TOKEN:
         logger.critical("DISCORD_TOKEN missing.")

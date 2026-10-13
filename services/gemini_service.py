@@ -296,3 +296,52 @@ Contenu (Markdown Discord, max 1500 caractères) :
             "content": sanitize_text(result)
         }
     return {}
+
+async def analyze_architecture_or_code(target_text: str, context_info: str = "", focus: str = "Architecture globale") -> str:
+    clean_target = strip_html(target_text)
+    clean_context = strip_html(context_info)
+
+    prompt = f"""Tu es l'architecte logiciel principal de la communauté CTRLX. Réalise un audit technique et architectural percutant, rigoureux et constructif.
+Axe prioritaire demandé : {focus}
+
+Contenu ou projet à auditer :
+{clean_target[:1500]}
+
+Contexte technique additionnel :
+{clean_context[:1000]}
+
+Directives strictes :
+- Rédige en français direct, professionnel et sans verbiage.
+- Longueur totale : STRICTEMENT moins de 1700 caractères pour ne pas dépasser la limite de message Discord.
+- N'utilise JAMAIS de balises HTML.
+- N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'. Aère avec des listes à puces et des paragraphes clairs.
+- Structure attendue (Markdown Discord) :
+# 🔍 AUDIT TECHNIQUE CTRLX : [Nom ou Sujet]
+[Synthèse globale en 2 phrases sur la proposition de valeur et la cohérence de la stack]
+
+### 🧱 Architecture & Conception
+• **Point fort :** ...
+• **Point d'attention :** ...
+
+### 🛡️ Sécurité & Résilience
+• **Recommandation :** ...
+
+### ⚡ Performance & Scalabilité
+• **Optimisation clé :** ...
+
+> 🎯 **Priorité d'implémentation :** [Conseil direct pour la prochaine étape]
+
+✍️ *Généré par CTRLX AI*
+"""
+    result = await call_gemini(prompt, temperature=0.7, max_tokens=750)
+    if result:
+        return sanitize_text(result)
+
+    return sanitize_text(
+        f"# 🔍 AUDIT TECHNIQUE CTRLX : {clean_target[:50]}\n\n"
+        f"L'analyse automatisée n'a pas pu contacter le modèle d'IA actuellement.\n\n"
+        f"• **Cible soumise :** {clean_target[:200]}\n"
+        f"• **Focus demandé :** {focus}\n\n"
+        f"> 💡 **Recommandation standard :** Vérifiez la modularité, la gestion des erreurs asynchrones et l'isolation des secrets d'environnement.\n\n"
+        f"✍️ *Généré par CTRLX AI*"
+    )
