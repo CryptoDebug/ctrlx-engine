@@ -4,9 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/bots/CTRLX
-ExecStart=/home/pi/bots/CTRLX/venv/bin/python main.py
+User=axellqt
+WorkingDirectory=/home/axellqt/CTRLX/Manager Bot
+ExecStart=/home/axellqt/CTRLX/venv/bin/python main.py
 Restart=always
 RestartSec=10
 Environment=PYTHONUNBUFFERED=1
