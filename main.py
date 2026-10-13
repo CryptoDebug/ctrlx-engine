@@ -12,6 +12,9 @@ from tasks.career_poster import setup_career_tasks
 from tasks.tutorials_poster import setup_tutorials_task
 from tasks.breaking_checker import setup_breaking_task
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
