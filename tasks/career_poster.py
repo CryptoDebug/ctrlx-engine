@@ -5,8 +5,9 @@ from config import (
     CHANNEL_CONSEILS_CARRIERE, CHANNEL_ETUDES_FORMATIONS,
     CAREER_INTERVAL_HOURS, FORMATION_INTERVAL_HOURS
 )
+import time
 from services.gemini_service import generate_career_tip, generate_formation_guide
-from database import mark_item_posted, increment_metric, record_topic, get_recent_topics
+from database import mark_item_posted, increment_metric, record_topic, get_recent_topics, get_last_posted_timestamp
 
 logger = logging.getLogger("CTRLX.CareerPoster")
 
@@ -14,6 +15,10 @@ def setup_career_tasks(bot: discord.Client):
     @tasks.loop(hours=CAREER_INTERVAL_HOURS)
     async def career_loop():
         try:
+            last_ts = get_last_posted_timestamp("career")
+            if time.time() - last_ts < (CAREER_INTERVAL_HOURS * 3600) - 60:
+                return
+
             channel = bot.get_channel(CHANNEL_CONSEILS_CARRIERE)
             if not channel:
                 logger.warning(f"Career channel ({CHANNEL_CONSEILS_CARRIERE}) not found.")
@@ -35,6 +40,10 @@ def setup_career_tasks(bot: discord.Client):
     @tasks.loop(hours=FORMATION_INTERVAL_HOURS)
     async def formation_loop():
         try:
+            last_ts = get_last_posted_timestamp("formation")
+            if time.time() - last_ts < (FORMATION_INTERVAL_HOURS * 3600) - 60:
+                return
+
             channel = bot.get_channel(CHANNEL_ETUDES_FORMATIONS)
             if not channel:
                 logger.warning(f"Formation channel ({CHANNEL_ETUDES_FORMATIONS}) not found.")

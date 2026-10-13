@@ -5,9 +5,10 @@ from config import (
     CHANNEL_TUTORIALS_COURSES, TAG_TUTO_DEV, TAG_TUTO_TOOLS,
     TUTORIALS_CHECK_HOURS
 )
+import time
 from services.feeds_service import fetch_tech_releases
 from services.gemini_service import generate_tutorial_for_tech
-from database import is_item_posted, mark_item_posted
+from database import is_item_posted, mark_item_posted, get_last_posted_timestamp
 
 logger = logging.getLogger("CTRLX.TutorialsPoster")
 
@@ -31,6 +32,10 @@ def setup_tutorials_task(bot: discord.Client):
     @tasks.loop(hours=TUTORIALS_CHECK_HOURS)
     async def tutorials_loop():
         try:
+            last_ts = get_last_posted_timestamp("tutorial")
+            if time.time() - last_ts < (TUTORIALS_CHECK_HOURS * 3600) - 60:
+                return
+
             forum_channel = bot.get_channel(CHANNEL_TUTORIALS_COURSES)
             if not forum_channel or not isinstance(forum_channel, discord.ForumChannel):
                 logger.warning(f"Tutorials forum ({CHANNEL_TUTORIALS_COURSES}) not found.")

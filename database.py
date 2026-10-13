@@ -120,3 +120,14 @@ def get_all_metrics() -> dict:
         cursor = conn.cursor()
         cursor.execute("SELECT metric_key, metric_value FROM bot_metrics")
         return {r['metric_key']: r['metric_value'] for r in cursor.fetchall()}
+
+def get_last_posted_timestamp(category: str) -> float:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT unixepoch(posted_at) as ts FROM posted_items
+            WHERE category = ?
+            ORDER BY id DESC LIMIT 1
+        """, (category,))
+        row = cursor.fetchone()
+        return float(row['ts']) if row and row['ts'] else 0.0

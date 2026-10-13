@@ -6,9 +6,10 @@ from config import (
     TAG_STAGE, TAG_ALTERNANCE, TAG_CDI_CDD, TAG_FREELANCE,
     JOB_INTERVAL_HOURS
 )
+import time
 from services.feeds_service import fetch_remote_jobs
 from services.gemini_service import format_job_offer
-from database import is_item_posted, mark_item_posted
+from database import is_item_posted, mark_item_posted, get_last_posted_timestamp
 
 logger = logging.getLogger("CTRLX.JobPoster")
 
@@ -16,6 +17,10 @@ def setup_job_task(bot: discord.Client):
     @tasks.loop(hours=JOB_INTERVAL_HOURS)
     async def job_loop():
         try:
+            last_ts = get_last_posted_timestamp("job")
+            if time.time() - last_ts < (JOB_INTERVAL_HOURS * 3600) - 60:
+                return
+
             forum_channel = bot.get_channel(CHANNEL_OFFRES_EMPLOI)
             if not forum_channel or not isinstance(forum_channel, discord.ForumChannel):
                 logger.warning(f"Job forum channel ({CHANNEL_OFFRES_EMPLOI}) not found.")

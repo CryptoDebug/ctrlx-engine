@@ -4,7 +4,7 @@ import sys
 import discord
 from discord.ext import commands
 
-from config import DISCORD_TOKEN, GUILD_ID
+from config import DISCORD_TOKEN, GUILD_ID, CHANNEL_SHIP_LOG
 from database import init_db
 from tasks.radar_poster import setup_radar_task
 from tasks.job_poster import setup_job_task
@@ -23,7 +23,31 @@ logging.basicConfig(
 logger = logging.getLogger("CTRLX.Core")
 
 intents = discord.Intents.default()
+intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+@bot.event
+async def on_message(message: discord.Message):
+    if message.author.bot:
+        return
+
+    if message.channel.id == CHANNEL_SHIP_LOG:
+        content_lower = message.content.lower()
+        has_build = any(k in content_lower for k in ["build", "avancé", "avance", "worked on"])
+        has_tools = any(k in content_lower for k in ["stack", "outil", "tools"])
+
+        if not (has_build and has_tools):
+            try:
+                await message.delete()
+                await message.channel.send(
+                    f"{message.author.mention} Tu dois respecter le format obligatoire pour poster dans ce salon. Consulte le message épinglé pour copier le template !",
+                    delete_after=15
+                )
+            except Exception as e:
+                logger.error(f"Error moderating ship-log message: {e}")
+            return
+
+    await bot.process_commands(message)
 
 @bot.event
 async def on_ready():
