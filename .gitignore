@@ -10,3 +10,4 @@ venv/
 .vscode/
 *.log
 *.pid
+assets/
