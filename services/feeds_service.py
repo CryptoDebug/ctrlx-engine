@@ -2,6 +2,8 @@ import aiohttp
 import feedparser
 import asyncio
 import logging
+import html
+import re
 from typing import List, Dict, Any
 
 logger = logging.getLogger("CTRLX.Feeds")
@@ -24,6 +26,14 @@ TECH_RELEASES_SOURCES = [
     {"name": "Zig", "url": "https://github.com/ziglang/zig/releases.atom"}
 ]
 
+def strip_html(text: str) -> str:
+    if not text:
+        return ""
+    clean = re.sub(r'<[^>]+>', ' ', text)
+    clean = html.unescape(clean)
+    clean = re.sub(r'\s+', ' ', clean)
+    return clean.strip()
+
 async def fetch_rss_entries(feed_url: str, timeout: int = 15) -> List[Dict[str, Any]]:
     try:
         async with aiohttp.ClientSession() as session:
@@ -42,9 +52,9 @@ async def fetch_radar_items() -> List[Dict[str, Any]]:
     for src in RADAR_SOURCES:
         entries = await fetch_rss_entries(src["url"])
         for entry in entries[:5]:
-            title = getattr(entry, "title", "").strip()
+            title = strip_html(getattr(entry, "title", ""))
             link = getattr(entry, "link", "").strip()
-            summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+            summary = strip_html(getattr(entry, "summary", "") or getattr(entry, "description", ""))
             if title and link:
                 items.append({
                     "title": title,
@@ -72,14 +82,16 @@ async def fetch_remote_jobs() -> List[Dict[str, Any]]:
                         elif "intern" in t_lower:
                             job_type = "Stage"
 
+                        raw_desc = strip_html(j.get("description", ""))
+
                         jobs.append({
-                            "title": j.get("title", ""),
-                            "company": j.get("company_name", ""),
+                            "title": strip_html(j.get("title", "")),
+                            "company": strip_html(j.get("company_name", "")),
                             "url": j.get("url", ""),
-                            "description": j.get("description", "")[:600],
-                            "location": j.get("candidate_required_location", "Remote"),
+                            "description": raw_desc[:600],
+                            "location": strip_html(j.get("candidate_required_location", "Remote")),
                             "job_type": job_type,
-                            "salary": j.get("salary", "Selon profil")
+                            "salary": strip_html(j.get("salary", "Selon profil"))
                         })
     except Exception as e:
         logger.error(f"Error fetching jobs: {e}")
@@ -90,7 +102,7 @@ async def fetch_tech_releases() -> List[Dict[str, Any]]:
     for tech in TECH_RELEASES_SOURCES:
         entries = await fetch_rss_entries(tech["url"])
         for entry in entries[:2]:
-            title = getattr(entry, "title", "").strip()
+            title = strip_html(getattr(entry, "title", ""))
             link = getattr(entry, "link", "").strip()
             content = getattr(entry, "summary", "") or getattr(entry, "content", "")
             if isinstance(content, list) and content:
@@ -100,7 +112,7 @@ async def fetch_tech_releases() -> List[Dict[str, Any]]:
                     "tech_name": tech["name"],
                     "title": title,
                     "link": link,
-                    "details": str(content)[:600]
+                    "details": strip_html(str(content))[:600]
                 })
     return releases
 

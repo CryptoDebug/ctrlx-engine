@@ -1,5 +1,6 @@
 import aiohttp
 import re
+import html
 import logging
 from config import GEMINI_API_KEY
 
@@ -7,12 +8,23 @@ logger = logging.getLogger("CTRLX.Gemini")
 
 GEMINI_MODELS = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"]
 
+def strip_html(text: str) -> str:
+    if not text:
+        return ""
+    clean = re.sub(r'<[^>]+>', ' ', text)
+    clean = html.unescape(clean)
+    clean = re.sub(r'\s+', ' ', clean)
+    return clean.strip()
+
 def sanitize_text(text: str) -> str:
     if not text:
         return ""
     clean = text.replace("—", "-").replace("–", "-")
     clean = re.sub(r'^[ \t]*---[ \t]*$', '', clean, flags=re.MULTILINE)
     clean = clean.replace("---", "")
+    clean = re.sub(r'<(?:p|span|div|a|b|i|strong|em|br|ul|ol|li|h[1-6]|table|tr|td|th)[^>]*>', ' ', clean, flags=re.IGNORECASE)
+    clean = re.sub(r'</(?:p|span|div|a|b|i|strong|em|br|ul|ol|li|h[1-6]|table|tr|td|th)>', ' ', clean, flags=re.IGNORECASE)
+    clean = html.unescape(clean)
     clean = re.sub(r'\n{3,}', '\n\n', clean)
     return clean.strip()
 
@@ -54,16 +66,19 @@ async def call_gemini(prompt: str, temperature: float = 0.7, max_tokens: int = 1
     return ""
 
 async def format_job_offer(raw_title: str, raw_company: str, raw_description: str, job_url: str, job_type: str = "CDI / CDD", location: str = "Paris / Télétravail") -> dict:
+    clean_desc = strip_html(raw_description)
+
     prompt = f"""Tu es le bot officiel de CTRLX, communauté tech & cybersécurité francophone.
 Voici les informations d'une offre d'emploi :
 - Titre : {raw_title}
 - Entreprise : {raw_company}
 - Type de contrat supposé : {job_type}
 - Localisation : {location}
-- Description brute : {raw_description[:1200]}
+- Description brute : {clean_desc[:1200]}
 - Lien : {job_url}
 
 Consignes strictes :
+- N'utilise JAMAIS de balises HTML (pas de <p>, <span>, <div>, etc.). Utilise uniquement du markdown standard.
 - N'utilise JAMAIS de tiret cadratin '—' ni de séparateur '---'. Aère simplement avec des sauts de ligne.
 - Reformate cette offre en respectant STRICTEMENT le format markdown suivant, en français soigné :
 
@@ -98,7 +113,7 @@ Ne rajoute AUCUN blabla avant ou après. Renvoie uniquement le texte formaté ci
         f"**Rémunération :** Selon profil & grille de l'entreprise\n"
         f"**Stack & Prérequis :** `Tech, Cloud, Best Practices`\n\n"
         f"**Description sommaire :**\n"
-        f"{raw_description[:250].strip()}...\n\n"
+        f"{clean_desc[:250].strip()}...\n\n"
         f"👉 **Pour postuler :** <{job_url}>"
     )
     return {
@@ -107,14 +122,17 @@ Ne rajoute AUCUN blabla avant ou après. Renvoie uniquement le texte formaté ci
     }
 
 async def format_tech_radar_news(title: str, summary: str, url: str, domain: str = "Tech") -> str:
+    clean_summary = strip_html(summary)
+
     prompt = f"""Tu es l'analyste de veille technologique de CTRLX.
 Voici une actualité tech / dev / cyber / IA :
 - Titre : {title}
-- Source / Détails : {summary[:800]}
+- Source / Détails : {clean_summary[:800]}
 - Lien : {url}
 - Domaine : {domain}
 
 Consignes strictes :
+- N'utilise JAMAIS de balises HTML.
 - N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'.
 - Rédige un flash info Discord en français :
 1. Une ligne avec un emoji adapté, le titre en gras et le domaine [ex: ⚡ **Titre de la news** (`#Dev` ou `#Cyber` ou `#IA` ou `#Web3` ou `#Hardware`)]
@@ -131,7 +149,7 @@ Sois direct, pro et percutant. Pas de formule de politesse. Moins de 400 caract�
     emoji = emojis.get(domain, "📺")
     return sanitize_text(
         f"{emoji} **{title}** (`#{domain}`)\n"
-        f"{summary[:180].strip()}...\n"
+        f"{clean_summary[:180].strip()}...\n"
         f"🔗 Source : <{url}>"
     )
 
@@ -143,6 +161,7 @@ async def generate_career_tip(exclude_topics: list = None) -> str:
     prompt = f"""Rédige une fiche de conseil carrière pour développeurs et profils cybersécurité francophones sur le Discord CTRLX.{exclusions_text}
 
 Consignes strictes :
+- N'utilise JAMAIS de balises HTML.
 - N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'.
 - Aère simplement avec des paragraphes et sauts de ligne clairs.
 - Termine obligatoirement par la signature : ✍️ *Généré par CTRLX AI*
@@ -183,6 +202,7 @@ async def generate_formation_guide(exclude_topics: list = None) -> str:
     prompt = f"""Rédige un guide pratique pour le salon #études-et-formations du Discord CTRLX.{exclusions_text}
 
 Consignes strictes :
+- N'utilise JAMAIS de balises HTML.
 - N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'.
 - Aère simplement avec des paragraphes et sauts de ligne clairs.
 - Termine obligatoirement par la signature : ✍️ *Généré par CTRLX AI*
@@ -216,12 +236,15 @@ Format attendu (markdown Discord) :
     )
 
 async def generate_tutorial_for_tech(tech_name: str, release_notes: str, url: str) -> dict:
+    clean_notes = strip_html(release_notes)
+
     prompt = f"""Une nouvelle technologie ou release majeure vient de sortir :
 - Nom : {tech_name}
-- Détails : {release_notes[:1000]}
+- Détails : {clean_notes[:1000]}
 - Lien : {url}
 
 Consignes strictes :
+- N'utilise JAMAIS de balises HTML.
 - N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'. Aère simplement avec des sauts de ligne.
 - Rédige un guide de prise en main au format de publication CTRLX pour notre forum :
 Titre du thread : 🚀 Découverte & Prise en main : {tech_name}
