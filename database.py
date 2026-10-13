@@ -41,6 +41,16 @@ def init_db():
                 metric_value INTEGER DEFAULT 0
             )
         """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS topic_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category TEXT NOT NULL,
+                topic_summary TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_topic_category ON topic_history(category)")
         conn.commit()
 
 def compute_hash(val: str) -> str:
@@ -68,6 +78,25 @@ def mark_item_posted(category: str, identifier: str, title: str = "", url: str =
             ON CONFLICT(metric_key) DO UPDATE SET metric_value = metric_value + 1
         """, (f"posts_{category}",))
         conn.commit()
+
+def record_topic(category: str, topic_summary: str):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO topic_history (category, topic_summary)
+            VALUES (?, ?)
+        """, (category, topic_summary.strip()))
+        conn.commit()
+
+def get_recent_topics(category: str, limit: int = 15) -> list:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT topic_summary FROM topic_history
+            WHERE category = ?
+            ORDER BY id DESC LIMIT ?
+        """, (category, limit))
+        return [row['topic_summary'] for row in cursor.fetchall()]
 
 def increment_metric(metric: str):
     with get_connection() as conn:

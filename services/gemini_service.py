@@ -1,4 +1,5 @@
 import aiohttp
+import re
 import logging
 from config import GEMINI_API_KEY
 
@@ -9,7 +10,11 @@ GEMINI_MODELS = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-li
 def sanitize_text(text: str) -> str:
     if not text:
         return ""
-    return text.replace("—", "-").replace("–", "-")
+    clean = text.replace("—", "-").replace("–", "-")
+    clean = re.sub(r'^[ \t]*---[ \t]*$', '', clean, flags=re.MULTILINE)
+    clean = clean.replace("---", "")
+    clean = re.sub(r'\n{3,}', '\n\n', clean)
+    return clean.strip()
 
 async def call_gemini(prompt: str, temperature: float = 0.7, max_tokens: int = 1500) -> str:
     if not GEMINI_API_KEY:
@@ -58,8 +63,9 @@ Voici les informations d'une offre d'emploi :
 - Description brute : {raw_description[:1200]}
 - Lien : {job_url}
 
-Consigne : Reformate cette offre en respectant STRICTEMENT le format markdown suivant, en français soigné :
-N'utilise JAMAIS le caractère tiret cadratin '—' (utilise uniquement un tiret normal '-' ou des deux-points ':').
+Consignes strictes :
+- N'utilise JAMAIS de tiret cadratin '—' ni de séparateur '---'. Aère simplement avec des sauts de ligne.
+- Reformate cette offre en respectant STRICTEMENT le format markdown suivant, en français soigné :
 
 **Entreprise / Structure :** [Nom de l'entreprise]
 **Poste :** [Titre du poste concis]
@@ -109,7 +115,7 @@ Voici une actualité tech / dev / cyber / IA :
 - Domaine : {domain}
 
 Consignes strictes :
-- N'utilise JAMAIS le caractère tiret cadratin '—' (utilise '-' ou ':').
+- N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'.
 - Rédige un flash info Discord en français :
 1. Une ligne avec un emoji adapté, le titre en gras et le domaine [ex: ⚡ **Titre de la news** (`#Dev` ou `#Cyber` ou `#IA` ou `#Web3` ou `#Hardware`)]
 2. 2 phrases percutantes résumant l'impact technique ou l'enjeu concret.
@@ -129,17 +135,16 @@ Sois direct, pro et percutant. Pas de formule de politesse. Moins de 400 caract�
         f"🔗 Source : <{url}>"
     )
 
-async def generate_career_tip() -> str:
-    prompt = """Rédige une fiche de conseil carrière pour développeurs et profils cybersécurité francophones sur le Discord CTRLX.
-Choisis un sujet parmi :
-- Comment négocier son salaire en premier emploi tech ou en reconversion
-- Les erreurs classiques en entretien technique (live coding, system design)
-- Passer de salarié à freelance : statuts (micro vs SASU), calcul du TJM et trouver sa première mission
-- Comment valoriser ses projets open source / GitHub pour décrocher des entretiens sans piston
-- Savoir dire non aux mauvaises offres et détecter les red flags des ESN / entreprises
+async def generate_career_tip(exclude_topics: list = None) -> str:
+    exclusions_text = ""
+    if exclude_topics:
+        exclusions_text = f"\nAttention, les sujets suivants ont DÉJÀ été traités récemment et sont strictement interdits : {', '.join(exclude_topics)}.\nPropose un sujet totalement inédit et novateur."
+
+    prompt = f"""Rédige une fiche de conseil carrière pour développeurs et profils cybersécurité francophones sur le Discord CTRLX.{exclusions_text}
 
 Consignes strictes :
-- N'utilise JAMAIS le tiret cadratin '—' (utilise '-' ou ':').
+- N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'.
+- Aère simplement avec des paragraphes et sauts de ligne clairs.
 - Termine obligatoirement par la signature : ✍️ *Généré par CTRLX AI*
 
 Format attendu (markdown Discord) :
@@ -155,7 +160,7 @@ Format attendu (markdown Discord) :
 
 ✍️ *Généré par CTRLX AI*
 """
-    result = await call_gemini(prompt, temperature=0.8, max_tokens=1000)
+    result = await call_gemini(prompt, temperature=0.85, max_tokens=1000)
     if result:
         return sanitize_text(result)
 
@@ -170,16 +175,16 @@ Format attendu (markdown Discord) :
         "✍️ *Généré par CTRLX AI*"
     )
 
-async def generate_formation_guide() -> str:
-    prompt = """Rédige un guide pratique pour le salon #études-et-formations du Discord CTRLX.
-Choisis un sujet à haute valeur ajoutée parmi :
-- Les certifications Cybersécurité qui valent vraiment le coup en 2026 (OSCP, CEH, Sec+, etc.)
-- Autodidacte vs École d'ingé vs Université : comment compenser les manques de chaque parcours
-- Les plateformes gratuites indispensables pour monter de niveau en réseau, linux et algo
-- Réussir son alternance tech : organisation, montée en compétences et passage en CDI
+async def generate_formation_guide(exclude_topics: list = None) -> str:
+    exclusions_text = ""
+    if exclude_topics:
+        exclusions_text = f"\nAttention, les sujets suivants ont DÉJÀ été traités récemment et sont strictement interdits : {', '.join(exclude_topics)}.\nPropose un sujet totalement inédit et novateur."
+
+    prompt = f"""Rédige un guide pratique pour le salon #études-et-formations du Discord CTRLX.{exclusions_text}
 
 Consignes strictes :
-- N'utilise JAMAIS le tiret cadratin '—' (utilise '-' ou ':').
+- N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'.
+- Aère simplement avec des paragraphes et sauts de ligne clairs.
 - Termine obligatoirement par la signature : ✍️ *Généré par CTRLX AI*
 
 Format attendu (markdown Discord) :
@@ -195,7 +200,7 @@ Format attendu (markdown Discord) :
 
 ✍️ *Généré par CTRLX AI*
 """
-    result = await call_gemini(prompt, temperature=0.8, max_tokens=1000)
+    result = await call_gemini(prompt, temperature=0.85, max_tokens=1000)
     if result:
         return sanitize_text(result)
 
@@ -217,7 +222,7 @@ async def generate_tutorial_for_tech(tech_name: str, release_notes: str, url: st
 - Lien : {url}
 
 Consignes strictes :
-- N'utilise JAMAIS le caractère tiret cadratin '—' (utilise '-' ou ':').
+- N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'. Aère simplement avec des sauts de ligne.
 - Rédige un guide de prise en main au format de publication CTRLX pour notre forum :
 Titre du thread : 🚀 Découverte & Prise en main : {tech_name}
 
@@ -225,19 +230,16 @@ Contenu (Markdown Discord, max 1600 caractères) :
 # 🚀 {tech_name.upper()} : CE QU'IL FAUT RETENIR
 [Description synthétique : c'est quoi, pourquoi ça change la donne]
 
----
 ## ⚡ Principales nouveautés & Caractéristiques
 • **...** : ...
 • **...** : ...
 • **...** : ...
 
----
 ## 💻 Exemple de code / Prise en main rapide
 ```[langage]
 // Code concret, court et exécutable montrant la syntaxe
 ```
 
----
 ## 🔗 Ressources officielles
 • Documentation : <{url}>
 
