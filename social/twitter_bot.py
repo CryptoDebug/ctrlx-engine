@@ -56,6 +56,15 @@ class TwitterBot:
 
     def search_tweets(self, query: str, limit: int = 10) -> list:
         if not TWITTER_BEARER_TOKEN:
+            if DRY_RUN:
+                logger.info(f"[SIMULATION] Mode sans cles pour la requete '{query}' (renseignez TWITTER_BEARER_TOKEN pour l'API reelle)")
+                return [
+                    {
+                        "id": f"sim_tweet_{abs(hash(query)) % 100000}",
+                        "text": f"Je viens de deployer mon side project dev en prod, preneur de vos avis techniques",
+                        "author_id": "tech_creator_fr"
+                    }
+                ]
             return []
 
         url = f"https://api.twitter.com/2/tweets/search/recent?query={urllib.parse.quote(query)}&max_results={max(10, min(100, limit))}&tweet.fields=author_id,created_at,text"

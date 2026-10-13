@@ -88,6 +88,19 @@ class RedditBot:
                     })
                 return posts
         except Exception as e:
+            if DRY_RUN and not self.is_configured():
+                logger.info(f"[SIMULATION] Mode sans cles pour r/{subreddit} (renseignez REDDIT_CLIENT_ID pour l'API reelle)")
+                return [
+                    {
+                        "id": f"t3_sim_{subreddit}_1",
+                        "raw_id": f"sim_{subreddit}_1",
+                        "title": f"Besoin d'avis et de retours sur l'architecture de mon projet dev",
+                        "selftext": "Je developpe un projet solo depuis deux mois et j'aimerais avoir des retours techniques sur mes choix.",
+                        "author": "dev_builder_fr",
+                        "permalink": f"https://reddit.com/r/{subreddit}/comments/sample",
+                        "subreddit": subreddit
+                    }
+                ]
             logger.warning(f"Error fetching r/{subreddit}: {e}")
             return []
 
