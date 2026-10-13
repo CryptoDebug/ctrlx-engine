@@ -16,7 +16,7 @@ def strip_html(text: str) -> str:
     clean = re.sub(r'\s+', ' ', clean)
     return clean.strip()
 
-def sanitize_text(text: str) -> str:
+def sanitize_text(text: str, max_len: int = 1900) -> str:
     if not text:
         return ""
     clean = text.replace("—", "-").replace("–", "-")
@@ -25,10 +25,21 @@ def sanitize_text(text: str) -> str:
     clean = re.sub(r'<(?:p|span|div|a|b|i|strong|em|br|ul|ol|li|h[1-6]|table|tr|td|th)[^>]*>', ' ', clean, flags=re.IGNORECASE)
     clean = re.sub(r'</(?:p|span|div|a|b|i|strong|em|br|ul|ol|li|h[1-6]|table|tr|td|th)>', ' ', clean, flags=re.IGNORECASE)
     clean = html.unescape(clean)
-    clean = re.sub(r'\n{3,}', '\n\n', clean)
+    clean = re.sub(r'\n{3,}', '\n\n', clean).strip()
+
+    if len(clean) > max_len:
+        truncated = clean[:max_len]
+        last_nl = truncated.rfind("\n")
+        if last_nl > max_len - 300:
+            clean = truncated[:last_nl].strip()
+        else:
+            clean = truncated.strip()
+        if "✍️ *Généré par CTRLX AI*" not in clean:
+            clean += "\n\n✍️ *Généré par CTRLX AI*"
+
     return clean.strip()
 
-async def call_gemini(prompt: str, temperature: float = 0.7, max_tokens: int = 1500) -> str:
+async def call_gemini(prompt: str, temperature: float = 0.7, max_tokens: int = 700) -> str:
     if not GEMINI_API_KEY:
         return ""
 
@@ -74,11 +85,11 @@ Voici les informations d'une offre d'emploi :
 - Entreprise : {raw_company}
 - Type de contrat supposé : {job_type}
 - Localisation : {location}
-- Description brute : {clean_desc[:1200]}
+- Description brute : {clean_desc[:1000]}
 - Lien : {job_url}
 
 Consignes strictes :
-- N'utilise JAMAIS de balises HTML (pas de <p>, <span>, <div>, etc.). Utilise uniquement du markdown standard.
+- N'utilise JAMAIS de balises HTML.
 - N'utilise JAMAIS de tiret cadratin '—' ni de séparateur '---'. Aère simplement avec des sauts de ligne.
 - Reformate cette offre en respectant STRICTEMENT le format markdown suivant, en français soigné :
 
@@ -96,7 +107,7 @@ Consignes strictes :
 
 Ne rajoute AUCUN blabla avant ou après. Renvoie uniquement le texte formaté ci-dessus.
 """
-    result = await call_gemini(prompt, temperature=0.3)
+    result = await call_gemini(prompt, temperature=0.3, max_tokens=500)
     if result and "**Entreprise / Structure :**" in result:
         return {
             "thread_title": sanitize_text(f"{raw_company} - {raw_title}"[:95]),
@@ -139,9 +150,9 @@ Consignes strictes :
 2. 2 phrases percutantes résumant l'impact technique ou l'enjeu concret.
 3. Le lien propre formaté : 🔗 Source : <{url}>
 
-Sois direct, pro et percutant. Pas de formule de politesse. Moins de 400 caractères.
+Sois direct, pro et percutant. Moins de 350 caractères.
 """
-    result = await call_gemini(prompt, temperature=0.5, max_tokens=400)
+    result = await call_gemini(prompt, temperature=0.5, max_tokens=300)
     if result:
         return sanitize_text(result)
 
@@ -161,6 +172,7 @@ async def generate_career_tip(exclude_topics: list = None) -> str:
     prompt = f"""Rédige une fiche de conseil carrière pour développeurs et profils cybersécurité francophones sur le Discord CTRLX.{exclusions_text}
 
 Consignes strictes :
+- Longueur : STRICTEMENT moins de 1500 caractères au total pour respecter les limites Discord.
 - N'utilise JAMAIS de balises HTML.
 - N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'.
 - Aère simplement avec des paragraphes et sauts de ligne clairs.
@@ -179,7 +191,7 @@ Format attendu (markdown Discord) :
 
 ✍️ *Généré par CTRLX AI*
 """
-    result = await call_gemini(prompt, temperature=0.85, max_tokens=1000)
+    result = await call_gemini(prompt, temperature=0.85, max_tokens=600)
     if result:
         return sanitize_text(result)
 
@@ -202,6 +214,7 @@ async def generate_formation_guide(exclude_topics: list = None) -> str:
     prompt = f"""Rédige un guide pratique pour le salon #études-et-formations du Discord CTRLX.{exclusions_text}
 
 Consignes strictes :
+- Longueur : STRICTEMENT moins de 1500 caractères au total pour respecter les limites Discord.
 - N'utilise JAMAIS de balises HTML.
 - N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'.
 - Aère simplement avec des paragraphes et sauts de ligne clairs.
@@ -220,7 +233,7 @@ Format attendu (markdown Discord) :
 
 ✍️ *Généré par CTRLX AI*
 """
-    result = await call_gemini(prompt, temperature=0.85, max_tokens=1000)
+    result = await call_gemini(prompt, temperature=0.85, max_tokens=600)
     if result:
         return sanitize_text(result)
 
@@ -240,16 +253,17 @@ async def generate_tutorial_for_tech(tech_name: str, release_notes: str, url: st
 
     prompt = f"""Une nouvelle technologie ou release majeure vient de sortir :
 - Nom : {tech_name}
-- Détails : {clean_notes[:1000]}
+- Détails : {clean_notes[:800]}
 - Lien : {url}
 
 Consignes strictes :
+- Longueur : STRICTEMENT moins de 1500 caractères.
 - N'utilise JAMAIS de balises HTML.
 - N'utilise JAMAIS le tiret cadratin '—' ni de séparateur '---'. Aère simplement avec des sauts de ligne.
 - Rédige un guide de prise en main au format de publication CTRLX pour notre forum :
 Titre du thread : 🚀 Découverte & Prise en main : {tech_name}
 
-Contenu (Markdown Discord, max 1600 caractères) :
+Contenu (Markdown Discord, max 1500 caractères) :
 # 🚀 {tech_name.upper()} : CE QU'IL FAUT RETENIR
 [Description synthétique : c'est quoi, pourquoi ça change la donne]
 
@@ -268,7 +282,7 @@ Contenu (Markdown Discord, max 1600 caractères) :
 
 ✍️ *Généré par CTRLX AI*
 """
-    result = await call_gemini(prompt, temperature=0.6, max_tokens=1200)
+    result = await call_gemini(prompt, temperature=0.6, max_tokens=650)
     if result:
         return {
             "name": sanitize_text(f"🚀 Découverte : {tech_name}"[:95]),
