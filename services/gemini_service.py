@@ -7,12 +7,11 @@ from config import GEMINI_API_KEY
 logger = logging.getLogger("CTRLX.Gemini")
 
 GEMINI_MODELS = [
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-3.8-flash",
     "gemini-3.1-flash-lite",
-    "gemini-flash-lite-latest"
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-flash-lite-latest",
+    "gemini-3.8-flash"
 ]
 
 def strip_html(text: str) -> str:
@@ -46,40 +45,46 @@ def sanitize_text(text: str, max_len: int = 1900) -> str:
 
     return clean.strip()
 
-async def call_gemini(prompt: str, temperature: float = 0.7, max_tokens: int = 700) -> str:
+async def call_gemini(prompt: str, temperature: float = 0.7, max_tokens: int = 1400) -> str:
     if not GEMINI_API_KEY:
         return ""
-
-    payload = {
-        "contents": [
-            {
-                "parts": [{"text": prompt}]
-            }
-        ],
-        "generationConfig": {
-            "temperature": temperature,
-            "maxOutputTokens": max_tokens
-        }
-    }
 
     async with aiohttp.ClientSession() as session:
         for model in GEMINI_MODELS:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+            gen_config = {
+                "temperature": temperature,
+                "maxOutputTokens": max_tokens
+            }
+            if any(k in model for k in ["3.5-flash", "3.6-flash", "3.7-flash", "3.8-flash"]):
+                gen_config["thinkingConfig"] = {"thinkingBudget": 0}
+
+            payload = {
+                "contents": [
+                    {
+                        "parts": [{"text": prompt}]
+                    }
+                ],
+                "generationConfig": gen_config
+            }
+
             try:
-                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=6)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         candidates = data.get("candidates", [])
                         if candidates and "content" in candidates[0]:
                             parts = candidates[0]["content"].get("parts", [])
                             if parts:
-                                return sanitize_text(parts[0].get("text", "").strip())
-                    elif resp.status in (429, 503, 404):
+                                text = parts[0].get("text", "").strip()
+                                if text and candidates[0].get("finishReason") != "MAX_TOKENS":
+                                    return sanitize_text(text)
+                                elif text and len(text) > 400:
+                                    return sanitize_text(text)
+                    elif resp.status in (429, 503, 404, 400):
                         continue
-                    else:
-                        break
             except Exception as e:
-                logger.error(f"Gemini call exception on {model}: {e}")
+                logger.debug(f"Gemini call exception on {model}: {e}")
 
     return ""
 
@@ -333,7 +338,7 @@ Directives strictes :
 
 ✍️ *Généré par CTRLX AI*
 """
-    result = await call_gemini(prompt, temperature=0.7, max_tokens=750)
+    result = await call_gemini(prompt, temperature=0.7, max_tokens=1400)
     if result:
         return sanitize_text(result)
 
