@@ -1,6 +1,7 @@
 import aiohttp
 import feedparser
 import asyncio
+import datetime
 import logging
 import html
 import re
@@ -103,10 +104,43 @@ async def fetch_security_advisories() -> List[Dict[str, Any]]:
 
     return items
 
+async def fetch_github_trending_repos() -> List[Dict[str, Any]]:
+    items = []
+    headers = {"User-Agent": "CTRLX-Community-Bot/1.0"}
+    cutoff_date = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=21)).strftime("%Y-%m-%d")
+    url = f"https://api.github.com/search/repositories?q=created:>{cutoff_date}+stars:>80&sort=stars&order=desc&per_page=6"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    for repo in data.get("items", []):
+                        full_name = repo.get("full_name", "")
+                        html_url = repo.get("html_url", "")
+                        desc = strip_html(repo.get("description", "") or "Projet open-source émergent")
+                        lang = repo.get("language") or "Outil"
+                        stars = repo.get("stargazers_count", 0)
+
+                        if full_name and html_url:
+                            items.append({
+                                "title": f"📦 [Open Source] {full_name} ({lang}) : {desc[:100]}",
+                                "link": html_url,
+                                "summary": f"⭐ {stars:,} étoiles. Langage : {lang}. Description : {desc[:280]}",
+                                "domain": "Dev",
+                                "source": "GitHub Trending"
+                            })
+    except Exception as e:
+        logger.debug(f"Error fetching trending repos: {e}")
+
+    return items
+
 async def fetch_radar_items() -> List[Dict[str, Any]]:
     items = []
     advisories = await fetch_security_advisories()
     items.extend(advisories)
+    trending = await fetch_github_trending_repos()
+    items.extend(trending)
     for src in RADAR_SOURCES:
         entries = await fetch_rss_entries(src["url"])
         for entry in entries[:5]:
