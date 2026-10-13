@@ -6,7 +6,7 @@ from config import (
     CAREER_INTERVAL_HOURS, FORMATION_INTERVAL_HOURS
 )
 from services.gemini_service import generate_career_tip, generate_formation_guide
-from database import mark_item_posted, increment_metric
+from database import mark_item_posted, increment_metric, record_topic, get_recent_topics
 
 logger = logging.getLogger("CTRLX.CareerPoster")
 
@@ -19,12 +19,16 @@ def setup_career_tasks(bot: discord.Client):
                 logger.warning(f"Career channel ({CHANNEL_CONSEILS_CARRIERE}) not found.")
                 return
 
-            tip = await generate_career_tip()
+            recent_topics = get_recent_topics("career", limit=20)
+            tip = await generate_career_tip(exclude_topics=recent_topics)
             if tip:
                 await channel.send(tip)
-                mark_item_posted("career", tip[:50], "Conseil Carrière CTRLX", "")
+                
+                title_line = tip.split("\n")[0].replace("#", "").strip()
+                record_topic("career", title_line)
+                mark_item_posted("career", tip[:50], title_line, "")
                 increment_metric("posts_career")
-                logger.info("Career tip posted.")
+                logger.info(f"Career tip posted: {title_line}")
         except Exception as e:
             logger.error(f"Error in career_loop: {e}")
 
@@ -36,12 +40,16 @@ def setup_career_tasks(bot: discord.Client):
                 logger.warning(f"Formation channel ({CHANNEL_ETUDES_FORMATIONS}) not found.")
                 return
 
-            guide = await generate_formation_guide()
+            recent_topics = get_recent_topics("formation", limit=20)
+            guide = await generate_formation_guide(exclude_topics=recent_topics)
             if guide:
                 await channel.send(guide)
-                mark_item_posted("formation", guide[:50], "Guide Études & Certifications", "")
+                
+                title_line = guide.split("\n")[0].replace("#", "").strip()
+                record_topic("formation", title_line)
+                mark_item_posted("formation", guide[:50], title_line, "")
                 increment_metric("posts_formation")
-                logger.info("Formation guide posted.")
+                logger.info(f"Formation guide posted: {title_line}")
         except Exception as e:
             logger.error(f"Error in formation_loop: {e}")
 

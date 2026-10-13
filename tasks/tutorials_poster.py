@@ -11,6 +11,22 @@ from database import is_item_posted, mark_item_posted
 
 logger = logging.getLogger("CTRLX.TutorialsPoster")
 
+async def find_existing_thread(forum_channel: discord.ForumChannel, tech_name: str):
+    target = tech_name.lower().strip()
+
+    for th in forum_channel.threads:
+        if target in th.name.lower():
+            return th
+
+    try:
+        async for th in forum_channel.archived_threads(limit=100):
+            if target in th.name.lower():
+                return th
+    except Exception as e:
+        logger.debug(f"Archived threads lookup error: {e}")
+
+    return None
+
 def setup_tutorials_task(bot: discord.Client):
     @tasks.loop(hours=TUTORIALS_CHECK_HOURS)
     async def tutorials_loop():
@@ -33,17 +49,30 @@ def setup_tutorials_task(bot: discord.Client):
                     thread_name = tuto.get("name", f"🚀 Découverte : {tech_name}")[:95]
                     content = tuto.get("content", "")
 
-                    tag_ids = [int(TAG_TUTO_DEV), int(TAG_TUTO_TOOLS)]
-                    applied_tags = [t for t in forum_channel.available_tags if t.id in tag_ids]
+                    existing_thread = await find_existing_thread(forum_channel, tech_name)
 
-                    await forum_channel.create_thread(
-                        name=thread_name,
-                        content=content,
-                        applied_tags=applied_tags
-                    )
+                    if existing_thread:
+                        if existing_thread.archived:
+                            try:
+                                await existing_thread.edit(archived=False)
+                            except Exception:
+                                pass
+
+                        update_msg = f"📢 **Nouvelle version / Mise à jour : {tech_name}**\n\n{content}"
+                        await existing_thread.send(update_msg)
+                        logger.info(f"Appended update to existing thread '{existing_thread.name}'")
+                    else:
+                        tag_ids = [int(TAG_TUTO_DEV), int(TAG_TUTO_TOOLS)]
+                        applied_tags = [t for t in forum_channel.available_tags if t.id in tag_ids]
+
+                        await forum_channel.create_thread(
+                            name=thread_name,
+                            content=content,
+                            applied_tags=applied_tags
+                        )
+                        logger.info(f"Created new tutorial thread: {thread_name}")
 
                     mark_item_posted("tutorial", url, thread_name, url)
-                    logger.info(f"Tutorial posted: {thread_name}")
                     break
         except Exception as e:
             logger.error(f"Error in tutorials_loop: {e}")

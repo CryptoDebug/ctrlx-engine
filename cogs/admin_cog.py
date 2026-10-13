@@ -140,15 +140,22 @@ class AdminCog(commands.Cog):
     ])
     async def career_force_cmd(self, interaction: discord.Interaction, rubrique: str):
         await interaction.response.defer(ephemeral=True)
+        from database import get_recent_topics, record_topic
         if rubrique == "career":
             ch = self.bot.get_channel(CHANNEL_CONSEILS_CARRIERE)
-            text = await generate_career_tip()
+            recent = get_recent_topics("career", limit=20)
+            text = await generate_career_tip(exclude_topics=recent)
+            cat = "career"
         else:
             ch = self.bot.get_channel(CHANNEL_ETUDES_FORMATIONS)
-            text = await generate_formation_guide()
+            recent = get_recent_topics("formation", limit=20)
+            text = await generate_formation_guide(exclude_topics=recent)
+            cat = "formation"
 
         if ch and text:
             await ch.send(text)
+            title_line = text.split("\n")[0].replace("#", "").strip()
+            record_topic(cat, title_line)
             await interaction.followup.send(f"✅ Publication effectuée dans {ch.mention} !", ephemeral=True)
         else:
             await interaction.followup.send("Erreur lors de la génération ou salon introuvable.", ephemeral=True)
