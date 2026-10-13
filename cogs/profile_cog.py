@@ -143,6 +143,29 @@ class ProfileCardView(ui.View):
         view = DomainSelectView(current)
         await interaction.response.send_message("Choisissez d'abord vos domaines pour mettre à jour votre profil :", view=view, ephemeral=True)
 
+class ProfileLauncherView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.button(label="Configurer / Mettre à jour mon profil", style=discord.ButtonStyle.primary, emoji="✏️", custom_id="ctrlx_profile_edit_btn")
+    async def edit_profile_btn(self, interaction: discord.Interaction, button: ui.Button):
+        profile = get_user_profile(interaction.user.id)
+        view = DomainSelectView(profile)
+        await interaction.response.send_message(
+            "Sélectionnez vos domaines d'expertise pour ouvrir l'éditeur de profil :",
+            view=view,
+            ephemeral=True
+        )
+
+    @ui.button(label="Consulter mon profil", style=discord.ButtonStyle.secondary, emoji="👤", custom_id="ctrlx_profile_view_btn")
+    async def view_profile_btn(self, interaction: discord.Interaction, button: ui.Button):
+        profile = get_user_profile(interaction.user.id)
+        cog = interaction.client.get_cog("ProfileCog")
+        if cog:
+            embed = cog.build_profile_embed(interaction.user, profile)
+            view = ProfileCardView(profile, interaction.user.id)
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
 class ProfileCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -151,6 +174,7 @@ class ProfileCog(commands.Cog):
             callback=self.context_view_profile
         )
         self.bot.tree.add_command(self.ctx_menu)
+        self.bot.add_view(ProfileLauncherView())
 
     async def cog_unload(self):
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
@@ -223,6 +247,26 @@ class ProfileCog(commands.Cog):
         embed = self.build_profile_embed(user, profile)
         view = ProfileCardView(profile, interaction.user.id)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @app_commands.command(name="profile-panel", description="Affiche le panneau interactif de configuration de profil.")
+    @app_commands.default_permissions(administrator=True)
+    async def profile_panel_cmd(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="👤 Fiches Développeur & Rôles Techniques",
+            description=(
+                "Rejoignez le réseau des builders CTRLX et rendez votre profil visible auprès de la communauté et des recruteurs !\n\n"
+                "### 🎯 Pourquoi créer votre profil ?\n"
+                "• **Rôles de compétences :** Obtenez vos rôles techniques automatiquement selon vos domaines (Web, Mobile, Web3, Cyber, Hardware, IA, Cloud).\n"
+                "• **Vitrine personnelle :** Renseignez votre stack, vos liens GitHub et Portfolio consultables via `/profile`.\n"
+                "• **Réputation & Badges :** Affichez vos points de Karma d'Entraide et vos projets validés dans `ship-log`.\n\n"
+                "Cliquez sur le bouton ci-dessous pour configurer votre profil en 30 secondes :"
+            ),
+            color=0x3498DB
+        )
+        embed.set_footer(text="CTRLX Community • Répertoire des Développeurs")
+        view = ProfileLauncherView()
+        await interaction.response.send_message("Panneau de profil envoyé !", ephemeral=True)
+        await interaction.channel.send(embed=embed, view=view)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ProfileCog(bot))

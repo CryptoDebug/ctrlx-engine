@@ -1,5 +1,5 @@
 import discord
-from discord import app_commands
+from discord import app_commands, ui
 from discord.ext import commands
 import time
 import logging
@@ -13,6 +13,44 @@ from database import (
 
 logger = logging.getLogger("CTRLX.FeedbackCog")
 
+class FeedbackLauncherView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.button(label="Classement Top Reviewers", style=discord.ButtonStyle.secondary, emoji="🏆", custom_id="ctrlx_fb_lead_karma")
+    async def lead_karma_btn(self, interaction: discord.Interaction, button: ui.Button):
+        items = get_feedback_leaderboard(limit=10)
+        medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+        embed = discord.Embed(
+            title="🏆 Classement Karma d'Entraide • Top Reviewers",
+            description="Les membres les plus engagés qui testent et donnent du retour constructif sur les projets des autres.",
+            color=0xE67E22
+        )
+        if not items:
+            embed.add_field(name="Aucune donnée enregistrée", value="Soyez le premier à tester un projet avec `/feedback-thank` !", inline=False)
+        else:
+            lines = [f"{medals[i] if i < len(medals) else f'`#{i+1}`'} <@{r['user_id']}> : **{r['feedback_karma']} pts de Karma**" for i, r in enumerate(items)]
+            embed.add_field(name="Top 10 Membres", value="\n".join(lines), inline=False)
+        embed.set_footer(text="CTRLX Community • Émulation et Entraide")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @ui.button(label="Classement Top Builders", style=discord.ButtonStyle.secondary, emoji="🚀", custom_id="ctrlx_fb_lead_ships")
+    async def lead_ships_btn(self, interaction: discord.Interaction, button: ui.Button):
+        items = get_ships_leaderboard(limit=10)
+        medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+        embed = discord.Embed(
+            title="🚀 Classement des Builders • Projets Livrés",
+            description="Les créateurs les plus réguliers qui expédient des fonctionnalités et avancées dans ship-log.",
+            color=0x3498DB
+        )
+        if not items:
+            embed.add_field(name="Aucune donnée enregistrée", value="Soyez le premier à poster dans `ship-log` !", inline=False)
+        else:
+            lines = [f"{medals[i] if i < len(medals) else f'`#{i+1}`'} <@{r['user_id']}> : **{r['ships_count']} ships livrés**" for i, r in enumerate(items)]
+            embed.add_field(name="Top 10 Membres", value="\n".join(lines), inline=False)
+        embed.set_footer(text="CTRLX Community • Émulation et Entraide")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
 class FeedbackCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -21,6 +59,7 @@ class FeedbackCog(commands.Cog):
             callback=self.context_reward_feedback
         )
         self.bot.tree.add_command(self.ctx_menu)
+        self.bot.add_view(FeedbackLauncherView())
 
     async def cog_unload(self):
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
@@ -186,8 +225,9 @@ class FeedbackCog(commands.Cog):
             color=0xF39C12
         )
         embed.set_footer(text="CTRLX • Build in Public & Entraide")
+        view = FeedbackLauncherView()
         await interaction.response.send_message("Panneau envoyé !", ephemeral=True)
-        await interaction.channel.send(embed=embed)
+        await interaction.channel.send(embed=embed, view=view)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(FeedbackCog(bot))
