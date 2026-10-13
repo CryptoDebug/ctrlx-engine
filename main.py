@@ -14,6 +14,7 @@ from tasks.job_poster import setup_job_task
 from tasks.career_poster import setup_career_tasks
 from tasks.tutorials_poster import setup_tutorials_task
 from tasks.breaking_checker import setup_breaking_task
+from services.publisher_service import publisher
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -102,6 +103,7 @@ async def on_ready():
         logger.error(f"Command sync error: {e}")
 
     try:
+        publisher.start_worker(bot)
         setup_radar_task(bot)
         setup_job_task(bot)
         setup_career_tasks(bot)

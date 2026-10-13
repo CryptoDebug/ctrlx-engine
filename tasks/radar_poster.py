@@ -8,6 +8,7 @@ import time
 from services.feeds_service import fetch_radar_items
 from services.gemini_service import format_tech_radar_news
 from database import is_item_posted, mark_item_posted, get_last_posted_timestamp
+from services.publisher_service import publisher
 
 logger = logging.getLogger("CTRLX.RadarPoster")
 
@@ -33,7 +34,7 @@ def setup_radar_task(bot: discord.Client):
                     domain = it.get("domain", "Tech")
 
                     formatted_text = await format_tech_radar_news(title, summary, url, domain)
-                    await channel.send(formatted_text)
+                    await publisher.enqueue(CHANNEL_TECH_RADAR, content=formatted_text)
 
                     mark_item_posted("radar", url, title, url)
                     logger.info(f"Radar post: {title[:50]}")

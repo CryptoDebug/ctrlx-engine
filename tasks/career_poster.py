@@ -8,6 +8,7 @@ from config import (
 import time
 from services.gemini_service import generate_career_tip, generate_formation_guide
 from database import mark_item_posted, increment_metric, record_topic, get_recent_topics, get_last_posted_timestamp
+from services.publisher_service import publisher
 
 logger = logging.getLogger("CTRLX.CareerPoster")
 
@@ -27,7 +28,7 @@ def setup_career_tasks(bot: discord.Client):
             recent_topics = get_recent_topics("career", limit=20)
             tip = await generate_career_tip(exclude_topics=recent_topics)
             if tip:
-                await channel.send(tip)
+                await publisher.enqueue(CHANNEL_CONSEILS_CARRIERE, content=tip)
                 
                 title_line = tip.split("\n")[0].replace("#", "").strip()
                 record_topic("career", title_line)
@@ -52,7 +53,7 @@ def setup_career_tasks(bot: discord.Client):
             recent_topics = get_recent_topics("formation", limit=20)
             guide = await generate_formation_guide(exclude_topics=recent_topics)
             if guide:
-                await channel.send(guide)
+                await publisher.enqueue(CHANNEL_ETUDES_FORMATIONS, content=guide)
                 
                 title_line = guide.split("\n")[0].replace("#", "").strip()
                 record_topic("formation", title_line)
