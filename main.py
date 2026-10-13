@@ -1,6 +1,9 @@
 import asyncio
+import atexit
 import logging
+import os
 import sys
+import psutil
 import discord
 from discord.ext import commands
 
@@ -21,6 +24,43 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger("CTRLX.Core")
+
+PID_FILE = "ctrlx.pid"
+
+def acquire_pid_lock():
+    if os.path.exists(PID_FILE):
+        try:
+            with open(PID_FILE, "r") as f:
+                content = f.read().strip()
+            if content:
+                old_pid = int(content)
+                if psutil.pid_exists(old_pid):
+                    try:
+                        proc = psutil.Process(old_pid)
+                        if "python" in proc.name().lower():
+                            logger.critical(f"Process already running with PID {old_pid}.")
+                            sys.exit(1)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+        except Exception as e:
+            logger.warning(f"Failed to inspect existing PID file: {e}")
+
+    try:
+        with open(PID_FILE, "w") as f:
+            f.write(str(os.getpid()))
+        atexit.register(release_pid_lock)
+    except Exception as e:
+        logger.error(f"Failed to write PID file: {e}")
+
+def release_pid_lock():
+    try:
+        if os.path.exists(PID_FILE):
+            with open(PID_FILE, "r") as f:
+                content = f.read().strip()
+            if content and int(content) == os.getpid():
+                os.remove(PID_FILE)
+    except Exception:
+        pass
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -83,7 +123,10 @@ async def main():
         await bot.start(DISCORD_TOKEN)
 
 if __name__ == "__main__":
+    acquire_pid_lock()
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("Bot stopped.")
+    finally:
+        release_pid_lock()
