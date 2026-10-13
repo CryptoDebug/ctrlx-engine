@@ -87,6 +87,18 @@ async def on_message(message: discord.Message):
             except Exception as e:
                 logger.error(f"Error moderating ship-log message: {e}")
             return
+        else:
+            try:
+                from database import increment_user_ships
+                from config import ROLE_BUILDER_VERIFIE
+                new_ships = increment_user_ships(message.author.id)
+                await message.add_reaction("🚀")
+                if new_ships >= 3 and isinstance(message.author, discord.Member) and message.guild:
+                    role = message.guild.get_role(ROLE_BUILDER_VERIFIE)
+                    if role and role not in message.author.roles:
+                        await message.author.add_roles(role)
+            except Exception as e:
+                logger.debug(f"Error processing ship award: {e}")
 
     await bot.process_commands(message)
 
@@ -117,6 +129,8 @@ async def main():
     init_db()
     await bot.load_extension("cogs.admin_cog")
     await bot.load_extension("cogs.review_cog")
+    await bot.load_extension("cogs.profile_cog")
+    await bot.load_extension("cogs.feedback_cog")
 
     if not DISCORD_TOKEN:
         logger.critical("DISCORD_TOKEN missing.")
