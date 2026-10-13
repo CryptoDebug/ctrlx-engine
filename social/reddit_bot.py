@@ -7,6 +7,7 @@ import time
 from config import (
     REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET,
     REDDIT_USERNAME, REDDIT_PASSWORD,
+    REDDIT_TOKEN_V2, REDDIT_SESSION,
     REDDIT_USER_AGENT, MONITORED_SUBREDDITS,
     MAX_REDDIT_ACTIONS_PER_DAY, DRY_RUN
 )
@@ -21,9 +22,12 @@ class RedditBot:
         self.token_expiry = 0
 
     def is_configured(self) -> bool:
-        return bool(REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET and REDDIT_USERNAME and REDDIT_PASSWORD)
+        return bool(REDDIT_TOKEN_V2 or (REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET and REDDIT_USERNAME and REDDIT_PASSWORD))
 
     def get_token(self) -> str | None:
+        if REDDIT_TOKEN_V2:
+            return REDDIT_TOKEN_V2
+
         if self.access_token and time.time() < self.token_expiry:
             return self.access_token
 
