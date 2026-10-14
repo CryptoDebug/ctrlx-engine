@@ -1,45 +1,68 @@
 # CTRLX Social Growth & Automation Engine
 
-Module d'automatisation pour le developpement et la visibilite de la communaute CTRLX sur Reddit et X / Twitter.
+Moteur d'automatisation autonome 24/7 pour le développement et la visibilité de la communauté CTRLX sur X / Twitter, Reddit et Facebook.
 
-### Fonctionnalites Cles
-* **Veille ciblée des discussions de developpeurs :** Surveillance des subreddits tech (r/developpeurs, r/france_tech, r/SideProject, r/webdev, r/Python) et des flux X.
-* **Reponses contextuelles indetectables :** Generation IA via Gemini 2.5 Flash Lite configuree avec des regles strictes anti-bot (zero emoji, ton developpeur authentique et humble, reponses courtes de 1 a 3 phrases).
-* **Publications de discussions authentiques :** Generation de sujets de discussion sans liens externes dans le corps de texte (pour eviter les filtres AutoModerator Reddit).
-* **Garde-fous anti-spam et limitations :** Quotas stricts par jour, cooldowns avec jitter aleatoire entre chaque action, base SQLite d'historique pour ne jamais repondre deux fois au meme post.
-* **Mode DRY_RUN par defaut :** Permet de tester et visualiser les contenus generes sans poster reellement tant que les cles API ne sont pas actives.
+### Fonctionnalités Clés
+* **Connexion automatique et autonome :** Au lancement, le script vérifie les sessions. Si une session manque et qu'un écran est disponible, le navigateur s'ouvre automatiquement pour vous connecter une seule fois et mémoriser l'état.
+* **Fonctionnement continu 24/7 :** Tourne en continu en tâche de fond avec gestion des cycles, pauses aléatoires et quotas journaliers stricts.
+* **Découverte de groupes Facebook français :** Recherche et répertorie automatiquement les groupes d'entraide informatique et de développeurs français pour y participer naturellement.
+* **Suivi conversationnel intelligent :** Si un utilisateur répond à l'une de vos réponses, le script analyse le message. S'il s'agit d'une simple fermeture (ex: "merci", "cool", "ok"), il ne répond pas. S'il pose une question ou demande des détails, il répond de manière humble et concise.
+* **Politique stricte zéro doublon :** Double vérification par base SQLite (`seen_items` et `social_actions`) pour ne jamais interagir deux fois avec le même message ou post.
+* **Orthographe française soignée avec accents :** Respect rigoureux de tous les accents français (é, è, ê, à, â, î, ï, ô, ù, ç) sans aucun emoji.
+* **Compatibilité Raspberry Pi :** Optimisé pour fonctionner sur Raspberry Pi OS avec Chromium headless et drapeaux de mémoire partagée adaptés.
 
 ### Structure du Dossier
-* `config.py` : Parametres, seuils d'actions quotidiennes et subreddits surveilles.
-* `database.py` : Base SQLite `social_data.sqlite` tracant les posts vus et les actions menees.
-* `content_engine.py` : Moteur de generation de contenu indetectable avec filtre strict anti-emojis.
-* `reddit_bot.py` : Connecteur REST OAuth vers Reddit (scans, reponses, publications).
-* `twitter_bot.py` : Connecteur OAuth 1.0a / Bearer vers X / Twitter (recherche, reponses, tweets).
-* `orchestrator.py` : Chef d'orchestre CLI et service continu.
+* `config.py` : Paramètres, quotas quotidiens et subreddits surveillés.
+* `database.py` : Base SQLite `social_data.sqlite` traçant l'historique, les éléments vus et les groupes Facebook.
+* `content_engine.py` : Moteur de génération de texte indétectable avec accents et filtrage conversationnel.
+* `browser_manager.py` : Gestionnaire Playwright headless/headed avec persistance des cookies dans `sessions/`.
+* `reddit_bot.py` : Bot Reddit avec gestion des flairs, détection des réponses et boîte de réception.
+* `twitter_bot.py` : Bot Twitter / X avec publication navigateur, veille et gestion des mentions.
+* `facebook_bot.py` : Bot Facebook avec découverte de groupes tech français et publication rotative.
+* `orchestrator.py` : Point d'entrée principal (mode continu 24/7 par défaut).
 
-### Utilisation CLI
+### Utilisation Rapide
 
-1. **Voir les statistiques et actions du jour :**
+1. **Lancement standard 24/7 (recommandé) :**
 ```bash
-python orchestrator.py --stats
+python social/orchestrator.py
+```
+Le script vérifie vos accès, ouvre la fenêtre de connexion si nécessaire, puis tourne en continu 24/7.
+
+2. **Afficher les statistiques et l'historique :**
+```bash
+python social/orchestrator.py --stats
 ```
 
-2. **Lancer un cycle unique de scan et reponse :**
+3. **Lancer un cycle unique :**
 ```bash
-python orchestrator.py --once
+python social/orchestrator.py --once
 ```
 
-3. **Generer et publier un sujet de discussion sur Reddit :**
+4. **Connexion interactive manuelle :**
 ```bash
-python orchestrator.py --post-reddit --subreddit developpeurs
+python social/orchestrator.py --auth facebook
+python social/orchestrator.py --auth twitter
+python social/orchestrator.py --auth all
 ```
 
-4. **Generer et publier un tweet authentique sur X :**
+5. **Découvrir de nouveaux groupes Facebook français :**
 ```bash
-python orchestrator.py --post-twitter
+python social/orchestrator.py --discover-groups
 ```
 
-5. **Lancer en arriere-plan continu (daemon) :**
+### Déploiement sur Raspberry Pi
+
+1. Sur votre PC Windows, effectuez la première connexion pour générer les fichiers de session :
+   * `social/sessions/twitter_state.json`
+   * `social/sessions/facebook_state.json`
+2. Copiez le dossier du projet ou le dossier `social/` sur votre Raspberry Pi (ex: `axellqt@raspberrypi:~/CTRLX/social/`).
+3. Sur le Raspberry Pi, installez Chromium si ce n'est pas déjà fait :
 ```bash
-python orchestrator.py --daemon
+sudo apt update && sudo apt install -y chromium-browser
 ```
+4. Lancez le script en arrière-plan :
+```bash
+nohup python3 social/orchestrator.py > social.log 2>&1 &
+```
+Le script tourne alors en totale autonomie sans nécessiter d'écran.
