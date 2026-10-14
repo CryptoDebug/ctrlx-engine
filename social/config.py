@@ -3,11 +3,14 @@ from dotenv import load_dotenv
 
 env_path_social = os.path.join(os.path.dirname(__file__), ".env")
 env_path_parent = os.path.join(os.path.dirname(__file__), "..", ".env")
+env_path_manager = os.path.join(os.path.dirname(__file__), "..", "Manager Bot", ".env")
 
+if os.path.exists(env_path_parent):
+    load_dotenv(env_path_parent)
+if os.path.exists(env_path_manager):
+    load_dotenv(env_path_manager)
 if os.path.exists(env_path_social):
     load_dotenv(env_path_social)
-elif os.path.exists(env_path_parent):
-    load_dotenv(env_path_parent)
 else:
     load_dotenv()
 
@@ -46,6 +49,7 @@ TWITTER_SEARCH_QUERIES = [
 
 MAX_REDDIT_ACTIONS_PER_DAY = int(os.getenv("MAX_REDDIT_ACTIONS_PER_DAY", "6"))
 MAX_TWITTER_ACTIONS_PER_DAY = int(os.getenv("MAX_TWITTER_ACTIONS_PER_DAY", "10"))
+MAX_FACEBOOK_ACTIONS_PER_DAY = int(os.getenv("MAX_FACEBOOK_ACTIONS_PER_DAY", "3"))
 COOLDOWN_BETWEEN_ACTIONS_SEC = int(os.getenv("COOLDOWN_BETWEEN_ACTIONS_SEC", "120"))
 DRY_RUN = os.getenv("DRY_RUN", "true").lower() in ("true", "1", "yes")
 

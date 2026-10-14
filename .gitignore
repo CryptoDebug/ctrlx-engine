@@ -11,3 +11,4 @@ venv/
 *.log
 *.pid
 assets/
+social/sessions/
